@@ -1,11 +1,9 @@
 
 <p align="center">
-  <pre align="center">
-       |                _)         |        _)      |             
-  _ \    \    _ \    \   |   _|     _ \   _| |   _` |   _` |   -_)
- .__/ _| _| \___/ _| _| _| \__|   _.__/ _|  _| \__,_| \__, | \___|
-_|                                                    ____/       
-  </pre>
+  <img src="screenshots/legacy_mode.png" alt="Phonic Bridge" width="700">
+</p>
+
+<p align="center">
   <strong>Secure Audio Streaming & Network Capture Module</strong><br>
   <sub>Zero-latency, lossless audio bridge — capture any sound and stream it anywhere.</sub>
 </p>
@@ -27,6 +25,11 @@ Phonic Bridge is a lightweight C++ application that captures audio from your com
 Built entirely with native Windows APIs (WASAPI for audio, Winsock2 for networking), it delivers **bit-perfect, studio-quality audio** with near-zero latency.
 
 **Made by [XXLRN](https://github.com/mericeraykurt).**
+
+<p align="center">
+  <img src="screenshots/ui_selection.png" alt="Boot Manager" width="700">
+  <br><sub>Boot Manager — Choose Legacy or Modern interface</sub>
+</p>
 
 ---
 
@@ -65,6 +68,11 @@ Built entirely with native Windows APIs (WASAPI for audio, Winsock2 for networki
 - **Background Playback** — MediaSession API integration keeps audio playing when the browser tab is minimized or the phone screen is locked.
 - **Access Control** — IP-based whitelist system with a visual LAN device manager.
 
+<p align="center">
+  <img src="screenshots/web.png" alt="Web Client" width="350">
+  <br><sub>Mobile Web Client — Stream audio to any phone or tablet</sub>
+</p>
+
 ### Administration
 - **Live Connection Dashboard** — Host sees all connected users in real-time with status, role, IP, and room info.
 - **Kick / Ban / Mute** — Full admin controls with interactive TUI (Tab to select, arrow keys to navigate).
@@ -76,6 +84,11 @@ Built entirely with native Windows APIs (WASAPI for audio, Winsock2 for networki
 - **Dynamic Mute Hotkeys** — Bind mute to any key including mouse buttons, numpad keys, or gamepad buttons.
 - **Volume Control** — Local volume adjustment (0–200%) with a visual volume bar. Web clients remember their volume across sessions.
 
+<p align="center">
+  <img src="screenshots/modern_mode.png" alt="Modern Mode Dashboard" width="700">
+  <br><sub>Modern Mode — Interactive dashboard with mouse support</sub>
+</p>
+
 ---
 
 ## 🏗️ How It Works
@@ -84,7 +97,7 @@ Phonic Bridge uses a **3-Way Relay Architecture**:
 
 ```
 ┌──────────┐         ┌──────────┐         ┌──────────────┐
-│  SENDER  │ ──UDP──▶│   HOST   │──UDP──▶ │  RECEIVER(s) │
+│  SENDER  │──UDP──▶│   HOST   │──UDP──▶ │  RECEIVER(s) │
 │ Captures │         │  Relays  │         │  Plays Audio │
 │  Audio   │         │  Traffic │         │              │
 └──────────┘         └──────────┘         └──────┬───────┘
@@ -109,6 +122,11 @@ The Host is the central relay. All traffic flows through it. **It does not play 
 2. Choose a port number (e.g., `4444`). This port must be reachable by all users.
 3. Choose **Secure Mode** (VPN/LAN only) or **UPnP Mode** (auto-opens the port on your router).
 4. The Host console shows a live dashboard of all connected users.
+
+<p align="center">
+  <img src="screenshots/host.png" alt="Host Live Tracker" width="700">
+  <br><sub>Host — Live connection tracker with event logs</sub>
+</p>
 
 **Admin Commands** (type in the Host console):
 
@@ -276,7 +294,8 @@ phonic-bridge/
 ├── version.rc        # Windows version resource (app metadata)
 ├── .gitignore        # Git ignore rules
 ├── LICENSE           # All Rights Reserved
-└── README.md         # This file
+├── README.md         # This file
+└── screenshots/      # Application screenshots for documentation
 ```
 
 ---
@@ -306,5 +325,6 @@ I promised a friend I would find a real solution to this problem we'd suffered t
 **Copyright © 2026 Meriç Eray Kurt (XXLRN). All Rights Reserved.**
 
 This software is source-available for educational and reference purposes only. You may **not** copy, modify, distribute, or use this code without explicit written permission. See [LICENSE](LICENSE) for full terms.
+
 
 For commercial use or partnership inquiries, contact the author directly.
