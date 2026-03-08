@@ -1,0 +1,3 @@
+# Mongoose is a vendored third-party library — exclude from GitHub language stats
+mongoose.c linguist-vendored
+mongoose.h linguist-vendored
