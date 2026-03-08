@@ -21,6 +21,7 @@
 #include "mongoose.h"
 #include "index.html.h"
 #include <iphlpapi.h>
+#include <winhttp.h>
 
 // Windows Audio (WASAPI) Libraries
 #include <windows.h>
@@ -38,8 +39,11 @@
 #pragma comment(lib, "mmdevapi.lib")
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "user32.lib")
+#pragma comment(lib, "winhttp.lib")
 
 using namespace Microsoft::WRL;
+
+#define APP_VERSION "v1.1.0"
 
 // COLOR THEMES (ANSI ESCAPE CODES)
 #define RESET   "\033[0m"
@@ -2899,6 +2903,19 @@ void runModernMode() {
                 ReadConsoleInput(hIn, ir, 128, &read);
                 for (DWORD i = 0; i < read; i++) {
                     if (ir[i].EventType == MOUSE_EVENT) {
+                        // MUTE KEY CAPTURE: Poll GetAsyncKeyState for ANY key/mouse button (same as Legacy Mode)
+                        if (activeBox == 4 && activeMuteKey == muteKey) {
+                            for (int vk = 1; vk < 255; vk++) {
+                                // Skip left/right click (UI navigation) and common modifiers
+                                if (vk == VK_LBUTTON || vk == VK_RBUTTON || vk == VK_RETURN || vk == VK_ESCAPE ||
+                                    vk == VK_UP || vk == VK_DOWN || vk == VK_LEFT || vk == VK_RIGHT || vk == VK_TAB) continue;
+                                if (GetAsyncKeyState(vk) & 0x8000) {
+                                    activeMuteKey = vk;
+                                    eventTriggered = true; break;
+                                }
+                            }
+                            if (eventTriggered) break;
+                        }
                         if (ir[i].Event.MouseEvent.dwEventFlags == 0 && (ir[i].Event.MouseEvent.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED)) {
                             int mx = ir[i].Event.MouseEvent.dwMousePosition.X;
                             int my = ir[i].Event.MouseEvent.dwMousePosition.Y;
@@ -3100,6 +3117,90 @@ std::vector<std::string> g_OpeningMessages = {
     "xxlrn was here!"
 };
 
+// ======================================================================
+// AUTO-UPDATE CHECKER (GitHub Releases API)
+// ======================================================================
+std::string g_UpdateVersion = "";
+std::atomic<bool> g_UpdateCheckDone(false);
+
+void checkForUpdatesThread() {
+    HINTERNET hSession = WinHttpOpen(L"PhonicBridge/1.1",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession) { g_UpdateCheckDone = true; return; }
+
+    // Set 3-second timeouts
+    WinHttpSetTimeouts(hSession, 3000, 3000, 3000, 3000);
+
+    HINTERNET hConnect = WinHttpConnect(hSession, L"api.github.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    if (!hConnect) { WinHttpCloseHandle(hSession); g_UpdateCheckDone = true; return; }
+
+    HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET",
+        L"/repos/mericeraykurt/phonic-bridge/releases/latest",
+        NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    if (!hRequest) { WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession); g_UpdateCheckDone = true; return; }
+
+    BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+    if (bResults) bResults = WinHttpReceiveResponse(hRequest, NULL);
+
+    std::string response;
+    if (bResults) {
+        DWORD dwSize = 0, dwDownloaded = 0;
+        do {
+            dwSize = 0;
+            WinHttpQueryDataAvailable(hRequest, &dwSize);
+            if (dwSize > 0) {
+                std::vector<char> buf(dwSize + 1, 0);
+                WinHttpReadData(hRequest, buf.data(), dwSize, &dwDownloaded);
+                response.append(buf.data(), dwDownloaded);
+            }
+            if (response.size() > 8192) break; // Safety cap
+        } while (dwSize > 0);
+    }
+
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+
+    // Parse "tag_name":"vX.X.X" from JSON
+    size_t pos = response.find("\"tag_name\"");
+    if (pos != std::string::npos) {
+        size_t vStart = response.find('"', pos + 10);
+        size_t vEnd = response.find('"', vStart + 1);
+        if (vStart != std::string::npos && vEnd != std::string::npos) {
+            std::string latestTag = response.substr(vStart + 1, vEnd - vStart - 1);
+            
+            // Compare versions numerically (vMAJOR.MINOR.PATCH)
+            auto parseVersion = [](const std::string& v) -> std::vector<int> {
+                std::string s = v;
+                if (!s.empty() && (s[0] == 'v' || s[0] == 'V')) s = s.substr(1);
+                std::vector<int> parts;
+                std::istringstream iss(s);
+                std::string token;
+                while (std::getline(iss, token, '.')) {
+                    try { parts.push_back(std::stoi(token)); } catch (...) { parts.push_back(0); }
+                }
+                while (parts.size() < 3) parts.push_back(0);
+                return parts;
+            };
+            
+            auto remote = parseVersion(latestTag);
+            auto local = parseVersion(APP_VERSION);
+            
+            // Only show update if remote is strictly NEWER
+            bool isNewer = false;
+            for (int i = 0; i < 3; i++) {
+                if (remote[i] > local[i]) { isNewer = true; break; }
+                if (remote[i] < local[i]) break;
+            }
+            
+            if (isNewer) {
+                g_UpdateVersion = latestTag;
+            }
+        }
+    }
+    g_UpdateCheckDone = true;
+}
+
 int main() {
     SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
     SetConsoleOutputCP(CP_UTF8);
@@ -3113,6 +3214,13 @@ int main() {
     
     WSADATA wsaData; 
     WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+    // Launch update check in background (non-blocking)
+    std::thread updateThread(checkForUpdatesThread);
+    updateThread.detach();
+
+    // Wait briefly for update check to finish so it shows on the first boot menu
+    for (int w = 0; w < 40 && !g_UpdateCheckDone; w++) Sleep(50); // Max 2 seconds
     
     while (true) {
         system("cls");
@@ -3123,6 +3231,11 @@ int main() {
         if (pad < 0) pad = 0;
         std::cout << "\033[90m" << std::string(pad, ' ') << activeOpeningMsg << "\033[0m\n";
         std::cout << "\033[36m============================================================\033[0m\n";
+
+        // Show update notification if available
+        if (g_UpdateCheckDone && !g_UpdateVersion.empty()) {
+            std::cout << YELLOW << "  [!] Update available: " << g_UpdateVersion << " -> github.com/mericeraykurt/phonic-bridge/releases" << RESET << "\n";
+        }
         std::cout << "  \033[32m[1] Phonic Bridge (Legacy Mode)\033[0m\n";
         std::cout << "  \033[32m[2] Phonic Bridge (Modern Mode)\033[0m\n";
         std::cout << "  \033[33m[3] Toggle Help Texts (Current: " << (g_ShowHelpTexts ? "ON)" : "OFF)") << "\033[0m\n";

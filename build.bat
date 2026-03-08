@@ -15,7 +15,7 @@ rc.exe /nologo version.rc
 :: We link against standard Windows Libraries (WS2_32, WinMM, Ole32)
 cl.exe /EHsc /std:c++17 /O2 /MD /D NDEBUG ^
     main.cpp mongoose.c version.res ^
-    /link /out:app.exe user32.lib ws2_32.lib gdi32.lib winmm.lib ole32.lib kernel32.lib advapi32.lib shell32.lib
+    /link /out:app.exe user32.lib ws2_32.lib gdi32.lib winmm.lib ole32.lib kernel32.lib advapi32.lib shell32.lib winhttp.lib
 
 if %ERRORLEVEL% equ 0 (
     echo.
