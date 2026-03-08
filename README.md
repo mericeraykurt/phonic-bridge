@@ -47,6 +47,8 @@ Built entirely with native Windows APIs (WASAPI for audio, Winsock2 for networki
 
 > **Same PC?** Use `127.0.0.1` as the IP. **Same WiFi?** Use the Host's local IP (run `ipconfig` to find it). **Over the internet?** Use a VPN like Radmin — see the [Internet Setup Guide](#-playing-over-the-internet) below.
 
+> ⚠️ **First launch:** Windows SmartScreen may show a warning because the app is not digitally signed. Click **"More info"** → **"Run anyway"**. This is normal for independent open-source software.
+
 ---
 
 ## ✨ Features
